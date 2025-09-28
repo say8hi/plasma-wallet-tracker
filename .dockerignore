@@ -1,0 +1,17 @@
+.git
+.gitignore
+README.md
+Dockerfile
+docker-compose*.yml
+.env
+.env.example
+logs/
+*.log
+.DS_Store
+node_modules/
+coverage/
+.nyc_output/
+dist/
+build/
+*.test
+*.out

@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  plasma-wallet-tracker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: plasma-wallet-tracker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Override specific variables for Docker networking
+      REDIS_HOST: redis
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - plasma-network
+    volumes:
+      - ./logs:/app/logs
+
+  redis:
+    image: redis:7-alpine
+    container_name: plasma-redis
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - plasma-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: plasma-redis-commander
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      REDIS_HOSTS: local:redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - plasma-network
+    profiles:
+      - monitoring
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  plasma-network:
+    driver: bridge
